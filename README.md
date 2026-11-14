@@ -1,204 +1,131 @@
-# FoodLink 🍲📡
+# FoodLink
 
-> **Smart Surplus-Food Redistribution System with IoT Telemetry & Digital Food Passport**
+A surplus-food redistribution web prototype connecting food providers, delivery partners and receiving organizations through dashboards, a digital food passport and a telemetry API.
 
-FoodLink is an end-to-end logistics and food rescue platform designed to bridge commercial food providers, courier networks, and community receiving organizations. By integrating physical IoT monitoring containers with an immutable digital tracking layer, FoodLink verifies food safety, hot/cold chain integrity, and weight audit compliance from kitchen staging to final intake.
+[Open the demo](https://foodlink-flax.vercel.app)
 
----
+## Problem and scope
 
-## 📑 Table of Contents
+Surplus-food handovers need visibility into batch origin, custody and container readings. FoodLink demonstrates those workflows using seeded records and a presentation scenario. It is an academic software prototype, not a food-safety certification system.
 
-- [Overview & Architecture](#-overview--architecture)
-- [Key Features](#-key-features)
-- [Stakeholder Portals & Demo Accounts](#-stakeholder-portals--demo-accounts)
-- [Physical IoT Hardware Layer](#-physical-iot-hardware-layer)
-- [Digital Food Passport](#-digital-food-passport)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [API Reference](#-api-reference)
-- [Design Philosophy](#-design-philosophy)
+## Implementation status
 
----
+| Area | Current implementation | Remaining work |
+| --- | --- | --- |
+| Web interface | Role dashboards, passport and device pages | Repeatable acceptance tests |
+| Telemetry | GET/POST API; temperature, weight and lid processing | Device authentication, strict validation, physical sensor verification |
+| Storage | Process-local global store with mock data | Durable database and migrations |
+| Sign-in | Hardcoded demo users and client-side sessions | Server-verified sessions and API permissions |
+| Hardware | Device specifications and JSON ingestion interface | Firmware, wiring, calibration evidence and prototype photos |
+| Presentation | Ten-stage simulated batch journey | Distinguish simulation from physical measurements |
 
-## 🌐 Overview & Architecture
+## Features and stack
 
-Every day, vast quantities of prepared surplus food are wasted due to lack of verifiable transit data and liability concerns around temperature abuse. FoodLink solves this by creating a closed-loop chain of custody:
+Role-specific dashboards, batch creation, a public food passport, a device registry, telemetry history, alert calculations, lid events and presentation mode for FL-DEMO-001.
 
-```
-[ FOOD PROVIDER ]                     [ COURIER / TRANSIT ]                 [ RECEIVER ]
-Commercial Kitchen / Catering          Dedicated Couriers / Vans             Community Shelters / Pantries
-       │                                       │                                   │
-       ▼                                       ▼                                   ▼
-Staging & Batch Creation              Custody Acceptance                   Arrival Inspection
-ESP32 Node Attached                   Real-time Temp & Latch Pings         Digital Receipt & Weight Audit
-       │                                       │                                   │
-       └───────────────────────────────────────┴───────────────────────────────────┘
-                                       ▼
-                       [ FOODLINK CORE PLATFORM ]
-                      Next.js 16 + Turbopack Engine
-                      Digital Food Passport Audit Log
+Next.js 16.3.5, React 19, TypeScript, Tailwind CSS 4 and Lucide icons. The backend uses Next.js App Router route handlers.
+
+## Architecture
+
+```mermaid
+flowchart TD
+    UI[Dashboards and food passport] --> API[Next.js route handlers]
+    SIM[Presentation scenario] --> STORE[In-memory store]
+    API --> STORE
+    MOCK[Mock records] --> STORE
+    DEVICE[External telemetry client] --> API
+    STORE --> LOGS[Readings and lid events]
 ```
 
----
+The client arrow describes the HTTP interface, not verified ESP32 operation. State is local to a server process and can reset on restart or differ across serverless instances.
 
-## ✨ Key Features
+## Installation
 
-### 1. Multi-Stakeholder Workflows
-- **Food Provider Console (`/app?role=provider`)**:
-  - Register surplus batches with category, initial temperature, net mass, and shelf-life expiration.
-  - Link batches to physical telemetry nodes (`FL-NODE-001`, etc.).
-  - Real-time staging queue and courier pickup dispatch.
-- **Delivery Partner Console (`/app?role=delivery`)**:
-  - Accept assigned transfers with loading dock handover verification.
-  - Active route guidance, destination ETA, and container seal latch telemetry.
-  - Multi-stage transit state machine (`ASSIGNED` → `ACCEPTED` → `PICKED_UP` → `IN_TRANSIT` → `ARRIVED` → `DELIVERED`).
-- **Receiving Organization Console (`/app?role=receiver`)**:
-  - Inbound shipment radar with real-time temperature and ETA alerts.
-  - One-click intake verification with automatic weight variance detection.
-  - Discrepancy logging for seal violations or thermal excursions.
+Use Node.js 22 LTS and npm as a setup target; verify a clean build in your environment.
 
-### 2. Digital Food Passport (`/food/[batchId]`)
-- Persistent, shareable public audit sheet for every food batch.
-- Displays origin kitchen, preparation timestamp, target organization, and continuous temperature logs.
-- Interactive sensor health indicators (DS18B20 1-Wire, HX711 Load Cell, Magnetic Reed Latch, Wi-Fi uplink).
-- Scannable QR code linking physical container stickers directly to the digital record.
-
-### 3. Dedicated Presentation & Evaluator Mode (`/presentation`)
-- Built specifically for academic reviews, jury evaluations, and demonstrations.
-- Interactive 10-milestone demo runner for batch `FL-DEMO-001` (`Hot Vegetable Korma & Basmati Portions`).
-- Supports automated playback or step-by-step milestone advancement (`FOOD PREPARED` → `PACKED` → `NODE CONNECTED` → `PICKED UP` → `TRANSPORT` → `MONITORED` → `CONTAINER EVENT` → `ARRIVED` → `DELIVERED` → `RECEIVED`).
-
----
-
-## 👥 Stakeholder Portals & Demo Accounts
-
-FoodLink includes preconfigured demo accounts for role-based authentication and evaluation:
-
-| Role | Demo Email | Password | Assigned Dashboard |
-| :--- | :--- | :--- | :--- |
-| **Food Provider** | `provider@foodlink.demo` | `FoodLink123` | `/app?role=provider` |
-| **Delivery Partner** | `delivery@foodlink.demo` | `FoodLink123` | `/app?role=delivery` |
-| **Receiving Organization** | `receiver@foodlink.demo` | `FoodLink123` | `/app?role=receiver` |
-
-> 💡 **Tip**: On the [`/login`](http://localhost:3000/login) page, click on any account in the **DEMO ACCESS** panel to instantly pre-fill credentials.
-
----
-
-## 📟 Physical IoT Hardware Layer
-
-FoodLink containers integrate a dedicated hardware telemetry node that streams real-time sensor packets:
-
-- **Microcontroller**: ESP32 Dual-Core 240MHz with 802.11 b/g/n Wi-Fi & BLE.
-- **Thermal Probe**: DS18B20 1-Wire digital temperature sensor (-55°C to +125°C, ±0.5°C precision).
-- **Load Cell & ADC**: Single-point strain gauge with HX711 24-bit ADC for precision weight monitoring.
-- **Container Latch**: Magnetic reed switch monitoring lid closures and detecting unauthorized openings in transit.
-- **Local Display**: 0.96" I2C Monochrome OLED showing batch ID, current temperature, and connectivity status.
-
-Inspect the technical equipment registry at [`/devices`](http://localhost:3000/devices) and individual node spec sheets at [`/devices/FL-NODE-001`](http://localhost:3000/devices/FL-NODE-001).
-
----
-
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js 16 (Turbopack)](https://nextjs.org/)
-- **UI & Components**: [React 19](https://react.dev/), [Tailwind CSS](https://tailwindcss.com/), [Lucide React Icons](https://lucide.dev/)
-- **Typography**: Geist Sans & Geist Mono
-- **State & Data**: Client session authentication, Next.js App Router API endpoints
-- **Hardware Integration**: RESTful JSON Telemetry Ingestion (`/api/devices/[deviceId]/telemetry`)
-
----
-
-## 📁 Project Structure
-
-```text
-FoodLink/
-├── src/
-│   ├── app/
-│   │   ├── api/
-│   │   │   ├── batches/              # Batch creation & query API
-│   │   │   ├── demo/                 # 10-stage presentation demo engine
-│   │   │   ├── devices/              # Equipment node registry
-│   │   │   └── devices/[deviceId]/   # Device telemetry ingestion handler
-│   │   ├── app/                      # Role-aware operations dashboard
-│   │   ├── devices/                  # Physical hardware equipment inventory
-│   │   │   └── [deviceId]/           # Technical node product specification
-│   │   ├── food/
-│   │   │   └── [batchId]/            # Digital Food Passport audit page
-│   │   ├── login/                    # Stakeholder login portal with demo credentials
-│   │   ├── presentation/             # Fullscreen presentation & review console
-│   │   ├── globals.css               # Design system tokens & global styling
-│   │   ├── layout.tsx                # Root layout & font definitions
-│   │   └── page.tsx                  # Public landing & system overview page
-│   ├── components/
-│   │   ├── batches/                  # Batch creation modal dialogs
-│   │   ├── hardware/                 # Milestone demo runner components
-│   │   ├── shared/                   # Navigation bar, footer, and shell
-│   │   └── ui/                       # Industrial tactile buttons, badges, QR codes
-│   ├── data/
-│   │   └── mockData.ts               # Initial batches, stakeholder profiles, notifications
-│   ├── lib/
-│   │   ├── auth.ts                   # Demo credentials, validation & session helpers
-│   │   └── utils.ts                  # Tailwind styling helpers
-│   └── types/
-│       └── foodlink.ts               # Core TypeScript definitions (batches, stages, telemetry)
-├── public/                           # Static assets and icons
-├── package.json
-└── README.md
+```bash
+git clone https://github.com/kanisk-sk/FoodLink.git
+cd FoodLink
+npm ci
+npm run dev
 ```
 
----
+Open http://localhost:3000. Validation commands:
 
-## 🚀 Getting Started
+```bash
+npm run lint
+npx tsc --noEmit
+npm run build
+npm run start
+```
 
-### Prerequisites
-- [Node.js](https://nodejs.org/) v18.18+ or v20+
-- `npm` or `pnpm`
+No automated test script is defined in package.json. These are verification instructions, not a claim that checks have passed.
 
-### Installation
+### Demo accounts
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/kanisk-14/FoodLink.git
-   cd FoodLink
-   ```
+| Role | Email | Password |
+| --- | --- | --- |
+| Provider | provider@foodlink.demo | FoodLink123 |
+| Delivery | delivery@foodlink.demo | FoodLink123 |
+| Receiver | receiver@foodlink.demo | FoodLink123 |
 
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
+These public credentials live in src/lib/auth.ts. Client-side roles and localStorage/cookies are not a security boundary. Use fictional data only.
 
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
+### Environment
 
-4. Open [http://localhost:3000](http://localhost:3000) in your browser.
+The inspected demo authentication and telemetry store require no API key or database credentials. Document new configuration in a secret-free .env.example when adding persistent storage or real authentication.
 
----
+## Routes and API
 
-## 🔌 API Reference
+| Route | Purpose |
+| --- | --- |
+| /login | Demo sign-in |
+| /app?role=provider | Provider dashboard |
+| /app?role=delivery | Delivery dashboard |
+| /app?role=receiver | Receiver dashboard |
+| /food/[batchId] | Food passport |
+| /devices | Device registry |
+| /presentation | Simulated journey |
+| GET /api/batches | List batches |
+| POST /api/batches | Create batch |
+| GET /api/devices | Device data |
+| GET /api/devices/[deviceId]/telemetry | Read telemetry; optional batchId query |
+| POST /api/devices/[deviceId]/telemetry | Record telemetry |
+| GET /api/demo | Read scenario |
+| POST /api/demo | Change scenario |
 
-| Endpoint | Method | Description |
-| :--- | :--- | :--- |
-| `/api/batches` | `GET` | List all active food batches with status and telemetry summary. |
-| `/api/batches` | `POST` | Create a new food batch and link it to an IoT node. |
-| `/api/devices` | `GET` | Retrieve list of registered ESP32 equipment nodes and battery levels. |
-| `/api/devices/[deviceId]/telemetry` | `POST` | Ingest sensor telemetry packets from physical ESP32 devices. |
-| `/api/demo` | `GET` | Fetch the current state of presentation demo batch `FL-DEMO-001`. |
-| `/api/demo` | `POST` | Advance or reset the 10-stage demonstration scenario. |
+### Local telemetry example
 
----
+```bash
+curl -X POST http://localhost:3000/api/devices/FL-NODE-001/telemetry -H 'Content-Type: application/json' -d '{"batchId":"FL-DEMO-001","temperature":62.4,"weight":6.4,"lidOpen":false,"isDemo":true}'
+```
 
-## 🎨 Design Philosophy
+The handler requires batchId, temperature, weight and lidOpen. Success returns status ACK, telemetry, any new lid event and alert flags. Weight is gross kilograms; the store subtracts a fixed 2.20 kg tare. Temperature is treated as Celsius.
 
-FoodLink uses a curated **Industrial Modern + Subtle Retro** aesthetic:
-- **Palette**: Warm ivory (`#F7F5EF`), deep charcoal (`#1C1D1B`), muted olive green (`#536B4F`), terracotta accent (`#B66A4E`), and tactile warm-gray borders (`#DDD9CF`).
-- **Typography**: Crisp modern sans-serif paired with selective monospace technical readouts.
-- **Zero AI Cliché**: No fluorescent glowing neon, no sci-fi dark HUDs, and no generic SaaS templates. Styled like real mission-critical logistics operations software.
+## Data model
 
----
+The store holds devices, batches, telemetryLogs, lidEvents and demoCurrentStep. Readings and lid events reference batchId and deviceId. There are no database migrations or enforced foreign keys.
 
-## 📄 License
+## Known limitations
 
-This project was created for demonstration and academic evaluation purposes. Licensed under the [MIT License](LICENSE).
+- Telemetry has no device authentication. Required-field checks and type coercion do not provide comprehensive validation.
+- Demo sign-in does not establish server-enforced role permissions.
+- Records are mutable and non-durable; the passport is not an immutable audit ledger.
+- Some seeded readings use isDemo: false despite being fixtures. That flag is not proof of sensor origin.
+- Temperature alerts use fixed thresholds below 50 or above 75 degrees, regardless of food category. They must not determine food safety.
+- Weight alerts use a fixed 2.20 kg tare and a 0.25 kg variance threshold rather than container-specific calibration.
+- Physical ESP32 integration, calibration and end-to-end operation remain unverified by this code review.
+- Actual dashboard screenshots and hardware photographs still need to be added.
+
+## Future improvements
+
+1. Add server authentication, role permissions and device credentials.
+2. Validate finite numeric ranges, booleans, timestamps and device/batch ownership.
+3. Add persistent storage, migrations and workflow tests.
+4. Separate fixtures from physical readings and display their source.
+5. Publish firmware, wiring and calibration procedures.
+6. Capture actual dashboard screenshots and prototype photos after verification.
+
+## Licence
+
+No LICENSE file is currently included. The earlier MIT link pointed to a missing file. Select and add a licence after confirming ownership of code and assets.
